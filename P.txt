@@ -1,0 +1,843 @@
+Production blueprint: Unsupervised Credit Memo Comment Intelligence Engine
+
+My recommendation is to build this as a dual-engine unsupervised learning platform, where two models independently assess credit memo comments and then combine their findings.
+
+* Engine A — Comment Intelligence: Understands whether the comment itself is meaningful, informative, relevant, repetitive, coherent and unusual.
+* Engine B — Credit Context Intelligence: Understands whether the comment aligns with the customer’s financial position, credit risk, historical assessments and other available information.
+
+A third component combines the findings into a quality assessment.
+
+The important architectural decision is that the two engines should remain independent. A comment might be well-written but financially incorrect. Equally, a factually correct comment might be vague, incomplete or poorly written.
+
+We should be able to detect both.
+
+1. Define the objectives
+
+I would establish these as the primary model outputs.
+
+Assessment	Engine	Objective
+Meaningfulness	A	Does the comment convey meaningful information?
+Semantic relevance	A	Does it relate to its intended subject?
+Specificity	A	Does it contain useful details?
+Redundancy	A	Is it repetitive or copied?
+Novelty	A	Does it add new information?
+Contextual relevance	B	Does it align with the credit memo?
+Financial consistency	B	Does it align with financial indicators?
+Historical consistency	B	Does it align with previous assessments?
+Risk coverage	B	Does it address relevant credit risk factors?
+Contradiction	B	Does it conflict with other available information?
+Completeness	A + B	Are important aspects missing?
+Optimality	A + B	Is it informative, concise and non-redundant?
+
+One distinction is essential:
+
+* Correctness means agreement with independently available evidence.
+* Meaningfulness means semantic and informational value.
+* Optimality means usefulness relative to the information available and the purpose of the comment.
+
+There is no objective universal definition of an optimal credit comment. We will establish measurable proxies for it.
+
+2. Overall production architecture
+
+Credit Memo Intelligence Platform
+
+Oracle Data Layer
+
+Credit memo comments · Customer Gold · Financials · Ratings · Historical assessments
+
+Feature Engineering & Data Preparation
+
+Text cleaning · Embeddings · Financial features · Temporal features · Context vectors
+
+Engine A
+
+Comment Intelligence
+
+Sentence Transformers
+
+HDBSCAN
+
+Isolation Forest
+
+Deep Autoencoder
+
+Contrastive learning
+
+Engine B
+
+Credit Context Intelligence
+
+Text encoder
+
+Tabular encoder
+
+Cross-modal learning
+
+Temporal autoencoder
+
+Anomaly detection
+
+Ensemble Intelligence Layer
+
+Score normalization · Model agreement · Confidence · Evidence attribution
+
+Credit Memo Quality Dashboard
+
+Quality indicators · Anomalies · Contradictions · Missing information · Explanations
+
+This architecture does not require an LLM or a supervised classifier.
+
+We can use pretrained neural encoders, self-supervised training and unsupervised anomaly detection. We will not train on manually labelled correct/incorrect comments.
+
+3. Engine A — Comment Intelligence
+
+This engine only evaluates comment text and its basic metadata.
+
+It must be capable of working even when no customer financial data is available.
+
+3.1 Feature engineering
+
+I would create four groups of features.
+
+A. Semantic features
+
+Use sentence embeddings to represent the actual meaning of the comment.
+
+Recommended starting model:
+
+sentence-transformers/all-mpnet-base-v2
+
+Potential features:
+
+* Embedding vector.
+* Semantic similarity to other comments.
+* Distance from cluster centroid.
+* Semantic coherence.
+* Similarity to comments in the same category.
+* Similarity to generic comment clusters.
+
+B. Linguistic features
+
+These are numerical features extracted from the text.
+
+Feature	Purpose
+Word count	Identify extremely short or long comments
+Sentence count	Measure structure
+Average sentence length	Identify complexity
+Unique word ratio	Detect repetitive language
+Financial terminology density	Identify domain-specific content
+Numerical entity count	Identify evidence-containing comments
+Repeated phrase ratio	Identify boilerplate
+Specificity indicators	Distinguish generic from concrete statements
+
+C. Semantic information features
+
+These are particularly valuable.
+
+* Number of distinct concepts.
+* Semantic diversity.
+* Information density.
+* Redundant sentence ratio.
+* Semantic similarity between consecutive sentences.
+* Similarity to previous comments by the same customer.
+* Similarity to comments from other customers.
+
+D. Metadata features
+
+* Comment category.
+* Memo section.
+* Customer segment.
+* Industry.
+* Date.
+* Comment length distribution by category.
+
+Metadata should be used to compare like with like. A liquidity comment should not be considered anomalous simply because it differs from a management assessment.
+
+3.2 Models
+
+I recommend the following combination:
+
+Model	Input	Output
+Sentence Transformer	Raw text	Semantic embeddings
+HDBSCAN	Embeddings	Natural comment clusters
+Isolation Forest	Embeddings + features	Anomaly score
+Autoencoder	Feature vectors	Reconstruction error
+Cosine similarity	Embeddings	Duplicate/redundancy score
+
+I would not use every model to make the same decision.
+
+Each should detect a different type of issue.
+
+Example: HDBSCAN
+
+Imagine you have 100,000 comments.
+
+The algorithm may discover clusters around:
+
+* Liquidity.
+* Leverage.
+* Profitability.
+* Revenue performance.
+* Market conditions.
+* Generic credit assessment.
+* Boilerplate.
+* Unusual or unclassified statements.
+
+You do not provide these labels during training. They are clusters discovered from the embeddings.
+
+You can inspect the representative comments in each cluster afterward to understand what the clusters represent.
+
+Example: Isolation Forest
+
+Suppose 99% of comments in a particular category have:
+
+* 30–100 words.
+* 2–5 sentences.
+* Financial terminology.
+* Specific customer-related information.
+
+One comment contains only:
+
+“The client’s financial situation remains satisfactory.”
+
+The model may flag this as unusual within that cohort.
+
+But an anomaly is not necessarily a bad comment. It is a candidate for further assessment.
+
+Example: Autoencoder
+
+Train an autoencoder on historical comment representations.
+
+A comment that differs substantially from learned patterns may have a high reconstruction error.
+
+I would use a dense autoencoder first rather than a large Transformer autoencoder. It is cheaper and easier to maintain.
+
+4. Engine B — Credit Context Intelligence
+
+This is the more interesting and potentially more valuable engine.
+
+Here, we don’t evaluate the comment in isolation. We evaluate the relationship between the comment and the underlying credit information.
+
+For example:
+
+* What does the comment say?
+* What is the customer’s actual financial position?
+* What was the previous financial position?
+* How has the credit rating changed?
+* What did the previous credit memo say?
+* Does the comment adequately reflect the available information?
+
+4.1 Feature engineering
+
+I would build a structured customer-context vector.
+
+Feature group	Example features
+Financial performance	Revenue, EBITDA, net income
+Leverage	Debt/EBITDA, net debt/EBITDA
+Liquidity	Current ratio, cash position
+Cash flow	Operating cash flow, FCF
+Credit risk	Internal rating, rating movement
+Credit exposure	Credit limits, utilization, outstanding exposure
+Historical trends	3-month, 6-month, 12-month changes
+Credit assessment	Previous recommendations, risk assessments
+Customer profile	Industry, customer segment, geography
+
+Only use metrics that actually exist and are relevant to the comment.
+
+For example, a comment about liquidity should not be assessed against an arbitrary list of profitability metrics.
+
+4.2 Create a contextual representation
+
+We now have two different representations:
+
+Text representation
+
+“The client maintains a stable financial position with improving liquidity.”
+
+Sentence Transformer → Text vector
+
+Financial representation
+
+Revenue: -18%
+
+EBITDA: -22%
+
+Net debt / EBITDA: 4.2x
+
+Liquidity ratio: -15%
+
+Tabular neural encoder → Financial vector
+
+Contextual representation
+
+Cross-modal embedding combining text and financial context.
+
+The two vectors should be learned independently before being combined.
+
+4.3 Recommended deep learning model: Cross-modal Autoencoder
+
+I would make this the primary deep learning model for Engine B.
+
+Architecture:
+
+* Text encoder: pretrained Sentence Transformer.
+* Financial encoder: Multi-Layer Perceptron (MLP).
+* Temporal encoder: GRU or temporal MLP.
+* Fusion layer: combines the three representations.
+* Decoder: reconstructs masked financial and contextual features.
+
+The model learns normal relationships between financial conditions and the comments historically associated with them.
+
+For example, it learns patterns such as:
+
+* Increasing leverage frequently accompanies a deterioration in credit risk.
+* Declining liquidity is frequently discussed in liquidity assessments.
+* Improving cash flow may accompany positive financial assessments.
+
+It does not assume that every relationship is universal or that historical commentary is always correct.
+
+Training objectives:
+
+* Reconstruct masked financial features.
+* Reconstruct masked contextual features.
+* Align comments with their associated customer and memo context.
+* Learn temporal representations of financial movements.
+* Detect deviations from the learned joint distribution.
+
+This is self-supervised learning, not supervised classification.
+
+4.4 Historical consistency model
+
+I would build another component that compares current and historical assessments.
+
+Example:
+
+Metric	Previous assessment	Current assessment
+Revenue growth	+12%	-18%
+EBITDA growth	+9%	-22%
+Leverage	2.1x	4.2x
+Credit rating	BBB	BB+
+
+Historical comment:
+
+“The client maintains a stable financial position.”
+
+Current comment:
+
+“The client’s financial position remains stable.”
+
+The model should identify that the narrative has barely changed despite significant changes in financial indicators.
+
+This can be achieved through:
+
+* Temporal embeddings.
+* Change-vector representations.
+* Semantic similarity.
+* Reconstruction of expected financial changes.
+* Joint anomaly scoring.
+
+This is one of the strongest use cases for your project.
+
+5. Training strategy without labelled data
+
+This is where we need to be particularly careful.
+
+I would use three different learning strategies.
+
+5.1 Unsupervised learning
+
+Used for discovering patterns without labels.
+
+Algorithm	Application
+HDBSCAN	Discover comment groups
+Isolation Forest	Detect anomalous comments
+LOF	Detect local anomalies
+Autoencoder	Learn normal representations
+One-Class SVM	Detect deviations from a learned distribution
+
+5.2 Self-supervised learning
+
+This is how we teach the deep learning models using your own historical data.
+
+No manual quality labels are required.
+
+I recommend four objectives.
+
+Objective	Training technique	What it teaches
+Semantic learning	Contrastive learning	Which comments have related meanings
+Text reconstruction	Masked Language Modelling	Credit-specific terminology and language
+Feature reconstruction	Denoising autoencoder	Normal feature relationships
+Temporal prediction	Predict next-period representation	Expected customer and financial evolution
+
+Contrastive learning example
+
+Suppose you have these comments:
+
+* “The company’s liquidity position remains strong.”
+* “The borrower maintains sufficient liquidity.”
+* “The company experienced deterioration in liquidity.”
+
+The first two are semantically related. The third is different.
+
+You can construct positive pairs using comments from the same semantic context and use carefully sampled negatives.
+
+One important precaution: comments from the same customer are not automatically positive pairs. They may represent opposite assessments in different periods.
+
+Use a combination of semantic similarity, section context and temporal information when constructing pairs.
+
+5.3 Domain adaptation
+
+I would not immediately train a Transformer from scratch.
+
+Instead:
+
+* Start with a pretrained sentence embedding model.
+* Extract your historical credit memo comments.
+* Adapt the model using masked language modelling or contrastive objectives.
+* Compare its embeddings against the original model.
+* Keep the adapted version only if it improves semantic structure and downstream unsupervised metrics.
+
+This reduces computational costs and avoids the need for a huge labelled dataset.
+
+6. How to combine both engines
+
+I would avoid combining everything into one black-box neural network.
+
+Keep separate outputs and introduce an ensemble layer.
+
+Proposed assessment dimensions
+
+Dimension	Primary source
+Semantic coherence	Engine A
+Specificity	Engine A
+Novelty	Engine A
+Redundancy	Engine A
+Context relevance	Engine B
+Financial consistency	Engine B
+Historical consistency	Engine B
+Risk coverage	Engine B
+Completeness	Both
+
+Example scoring output
+
+Comment assessment
+
+Review recommended
+
+61/100
+
+Illustrative composite quality indicator.
+
+Engine A — Comment Intelligence
+
+Semantic coherence
+
+92
+
+Specificity
+
+48
+
+Novelty
+
+65
+
+Redundancy risk
+
+78
+
+Engine B — Credit Context Intelligence
+
+Context relevance
+
+88
+
+Financial consistency
+
+35
+
+Historical consistency
+
+40
+
+Risk coverage
+
+55
+
+Model findings
+
+* Text is coherent and relevant.
+* Comment contains limited supporting detail.
+* Financial deterioration is not adequately reflected.
+* Historical narrative differs little despite significant changes in financial indicators.
+
+Potential financial inconsistency
+
+The example values are illustrative, not model-generated predictions.
+
+I would use percentile-based normalization within comparable cohorts rather than directly combining raw anomaly scores.
+
+For example, a redundancy score of 90 and a reconstruction error of 90 are not inherently comparable.
+
+Keep three outputs separate:
+
+* Quality score.
+* Anomaly score.
+* Evidence confidence.
+
+A high anomaly score should not automatically mean low quality.
+
+7. How do we establish correctness without labels?
+
+This deserves special attention.
+
+An unsupervised model cannot discover objective truth merely by learning historical patterns.
+
+Imagine 80% of historical comments incorrectly describe a particular financial trend. The model could learn that incorrect narrative as normal.
+
+Therefore, I recommend three levels of factual assessment.
+
+Level	Method	Output
+1. Internal consistency	Compare extracted numerical claims with available source figures	Consistent / inconsistent
+2. Cross-context consistency	Compare comment semantics with customer financial and credit information	Aligned / potentially conflicting
+3. Historical consistency	Compare current and historical financial movements with narrative changes	Consistent / potentially anomalous
+
+For numerical claims, extract entities and figures from comments and link them to the corresponding Oracle financial fields.
+
+Example:
+
+* Comment: Net debt/EBITDA is 2.5x.
+* Oracle Gold: Net debt/EBITDA is 4.1x.
+* Result: Potential numerical inconsistency.
+
+This requires numerical entity extraction and data reconciliation. The final comparison can be deterministic; it does not need a supervised classifier.
+
+For broader semantic comparisons, you can use pretrained neural entailment models, but remember that those models may have been trained on externally labelled datasets. They would not be trained on your credit memo labels.
+
+If your requirement prohibits even externally supervised pretrained models, use self-supervised encoders and anomaly detection only. The resulting contradiction detection will be less reliable.
+
+Most importantly, the output should distinguish:
+
+* Supported by available evidence.
+* Contradicted by available evidence.
+* Not verifiable from available data.
+
+Do not force every comment into correct or incorrect.
+
+8. Production data architecture in Oracle
+
+Given your existing Oracle Gold-layer environment, I would separate raw data, model features, inference outputs and model metadata. Your existing daily Gold refresh can act as the upstream trigger for contextual scoring.
+
+I would create these tables:
+
+Table	Purpose
+CM_COMMENT_RAW	Original comments and metadata
+CM_CONTEXT_FEATURES	Customer financial and credit context
+CM_COMMENT_EMBEDDINGS	Semantic embeddings
+CM_COMMENT_FEATURES	Linguistic and numerical features
+CM_CLUSTER_RESULTS	HDBSCAN cluster assignments
+CM_ENGINE_A_SCORES	Text intelligence scores
+CM_ENGINE_B_SCORES	Context intelligence scores
+CM_ENSEMBLE_RESULTS	Final combined assessment
+CM_MODEL_REGISTRY	Model versions and training metadata
+CM_MODEL_MONITORING	Drift and model performance metrics
+
+Use a stable comment ID and memo ID, plus a customer ID and assessment period.
+
+Avoid storing multiple copies of raw comments in the feature tables.
+
+Production execution flow
+
+flowchart TD
+    A["Oracle Credit Memo + Gold Data"] --> B["Daily Data Refresh"]
+    B --> C["Incremental Feature Extraction"]
+    C --> D["Text Embedding Pipeline"]
+    C --> E["Financial Context Encoder"]
+    D --> F["Engine A: Text Intelligence"]
+    E --> G["Engine B: Context Intelligence"]
+    F --> H["Ensemble Scoring"]
+    G --> H
+    H --> I["Oracle Assessment Tables"]
+    I --> J["Streamlit Dashboard"]
+    I --> K["Drift Monitoring"]
+    K --> L["Model Retraining Decision"]
+    L --> M["Versioned Model Deployment"]
+
+I would use Python batch inference rather than call the model separately for every Oracle record.
+
+For each daily refresh:
+
+* Identify new and changed credit memos.
+* Extract the relevant customer context.
+* Generate embeddings for new or changed comments.
+* Score Engine A.
+* Score Engine B.
+* Combine outputs.
+* Persist results with model version and timestamp.
+* Publish results to the dashboard.
+
+For historical comments, run an initial batch backfill.
+
+For changed financial context, rescore the affected contextual assessments even if the comment text has not changed.
+
+9. Evaluation without labelled data
+
+This is probably the biggest challenge in production.
+
+You cannot use traditional classification metrics such as precision, recall, F1 or accuracy as evidence of correctness when you have no ground-truth labels.
+
+But you can still evaluate the quality and stability of your models.
+
+I would establish five evaluation methods.
+
+A. Clustering quality
+
+Measure:
+
+* Silhouette score.
+* Davies–Bouldin index.
+* Cluster stability.
+* Noise percentage.
+* Cluster size distribution.
+
+Use these to evaluate whether semantic groups are meaningful and stable, not whether comments are good.
+
+B. Anomaly detection quality
+
+Evaluate:
+
+* Score distribution.
+* Anomaly rate.
+* Stability over time.
+* Agreement between Isolation Forest and Autoencoder.
+* Consistency across different random seeds.
+
+If two independent models repeatedly flag the same comment, that is a stronger review signal, but not proof that it is incorrect.
+
+C. Reconstruction quality
+
+For autoencoders:
+
+* Mean squared error.
+* Mean absolute error.
+* Reconstruction error by customer segment.
+* Reconstruction error by comment category.
+* Error distribution over time.
+
+Avoid a single global anomaly threshold.
+
+D. Synthetic corruption testing
+
+This is particularly useful when no labels exist.
+
+Create controlled test copies of historical comments.
+
+Perturbation	Expected detection
+Remove financial figures	Reduced specificity / evidence
+Duplicate sentences	Increased redundancy
+Replace financial terminology	Semantic anomaly
+Remove risk discussion	Reduced risk coverage
+Change a numerical value	Numerical inconsistency
+Insert unrelated sentences	Reduced contextual relevance
+Reverse positive/negative wording	Potential semantic contradiction
+
+These are artificial test cases, not real labelled training examples.
+
+They help establish whether the system behaves as expected.
+
+E. Temporal backtesting
+
+Train using historical data up to a particular date and evaluate on subsequent periods.
+
+For example:
+
+* Train: January–December 2025.
+* Validation: January–March 2026.
+* Test: April–June 2026.
+
+Check whether clusters remain stable and whether anomaly distributions change unexpectedly.
+
+Also perform customer-grouped validation so that the same customer’s nearly identical comments do not leak into training and evaluation.
+
+My recommendation: Maintain a small, optional expert-reviewed validation sample later. It need not become the training dataset. Without any human or external truth reference, you can assess model stability and internal consistency, but cannot establish real-world correctness or the true precision of incorrect-comment detection.
+
+10. Model training and retraining strategy
+
+I would separate model training from daily inference.
+
+Component	Initial training	Retraining
+Sentence Transformer	Existing pretrained model + domain adaptation	When domain drift is detected
+HDBSCAN	Historical embedding corpus	Periodically or when new clusters emerge
+Isolation Forest	Historical feature distribution	Periodically
+Autoencoder A	Historical comment features	When reconstruction drift occurs
+Context Autoencoder B	Historical text-financial pairs	When financial relationships drift
+Temporal encoder	Historical customer snapshots	When temporal patterns materially change
+
+Do not retrain every day simply because new comments arrive.
+
+Instead, monitor:
+
+* Embedding distribution drift.
+* Cluster composition changes.
+* Reconstruction error changes.
+* Anomaly rate changes.
+* Financial feature distribution changes.
+* Missing-data patterns.
+
+Use versioned model artifacts and retain the previous champion model until a challenger demonstrates better stability.
+
+11. Recommended technology and initial configuration
+
+These are starting points, not final hyperparameters.
+
+Component	Initial configuration
+Embedding model	all-mpnet-base-v2
+Embedding dimension	768
+Clustering	HDBSCAN
+Initial min_cluster_size	20–50
+Anomaly detection	Isolation Forest
+Initial contamination	Estimate from observed distribution; don’t assume a fixed bad-comment rate
+Autoencoder	768 → 256 → 64 → 256 → 768
+Optimizer	Adam
+Initial learning rate	0.001 for dense autoencoder
+Loss	MSE / appropriate reconstruction losses
+Epochs	50–100 with early stopping
+Training framework	PyTorch
+Feature processing	Scikit-learn
+Data processing	Pandas / Polars
+Persistence	Oracle
+
+For Engine B, the architecture should be more sophisticated:
+
+* Text encoder: 768-dimensional embeddings.
+* Financial encoder: MLP.
+* Temporal encoder: GRU or temporal MLP.
+* Fusion: concatenation + projection.
+* Decoder: reconstruct masked financial and context features.
+
+I would initially avoid complex Transformer architectures for the financial encoder. Start with an MLP and introduce temporal deep learning only when it demonstrates additional value.
+
+12. Production rollout
+
+I would implement this in four phases.
+
+* Phase 1 — Text intelligence
+    First MVP
+    * Extract historical comments.
+    * Generate embeddings.
+    * Discover semantic clusters.
+    * Identify duplicates and boilerplate.
+    * Implement Isolation Forest.
+    * Generate comment-level quality indicators.
+    Deliverable: Engine A and initial comment dashboard.
+* Phase 2 — Credit context intelligence
+    * Extract customer financial information.
+    * Create historical financial representations.
+    * Develop contextual autoencoder.
+    * Detect potential inconsistencies.
+    * Implement historical comparison.
+    Deliverable: Engine B.
+* Phase 3 — Ensemble and validation
+    * Combine independent model scores.
+    * Implement score calibration.
+    * Perform synthetic corruption testing.
+    * Perform temporal backtesting.
+    * Establish anomaly thresholds.
+    Deliverable: Integrated intelligence engine.
+* Phase 4 — Production deployment
+    * Oracle persistence.
+    * Incremental scoring.
+    * FastAPI services.
+    * Streamlit dashboard.
+    * Model registry.
+    * Drift monitoring and retraining.
+    Deliverable: Production platform.
+
+13. What I would NOT do
+
+There are several design mistakes I would actively avoid.
+
+* Don’t treat frequent comments as good comments. Historical frequency is not a measure of quality.
+* Don’t treat anomalies as incorrect statements. They are candidates for investigation.
+* Don’t use one global model for every comment category. Different credit memo sections have different semantic patterns.
+* Don’t use a single score as the truth. Keep meaningfulness, financial consistency and anomaly detection separate.
+* Don’t train a large Transformer from scratch. Start with pretrained representations and domain adaptation.
+* Don’t use customer credit decisions as quality labels. An approved memo can still contain poor-quality comments.
+* Don’t allow historical narrative patterns to override financial evidence.
+
+14. My final recommended model stack
+
+If I were responsible for delivering this project, this is the combination I would choose:
+
+Final model portfolio
+
+Engine A — Text-only
+
+Core models
+
+* Sentence Transformer — semantic representation.
+* HDBSCAN — natural comment discovery.
+* Isolation Forest — text anomaly detection.
+* Dense Autoencoder — representation anomaly detection.
+* Cosine similarity — duplication and redundancy.
+
+Engine B — Context-aware
+
+Core models
+
+* Sentence Transformer — comment representation.
+* MLP — financial representation.
+* GRU — historical financial evolution.
+* Cross-modal Autoencoder — joint contextual anomaly detection.
+* Contrastive learning — text and financial context alignment.
+* Temporal anomaly detection — narrative versus financial evolution.
+
+Ensemble
+
+Final assessment
+
+* Score normalization.
+* Model agreement.
+* Anomaly ranking.
+* Evidence confidence.
+* Explainable findings.
+
+15. Three important decisions before coding
+
+I would like to establish these before we start implementing the actual Python models.
+
+1. What language are the credit memo comments written in?
+
+English only
+
+English + multiple languages
+
+Multiple languages equally
+
+2. What should be the model’s evaluation unit?
+
+Individual comment only
+
+Individual comment + complete memo context
+
+Complete credit memo
+
+All three levels
+
+3. How many historical comments do you expect to process?
+
+Below 10k
+
+10k–100k
+
+100k–1M
+
+Above 1M
+
+Not yet established
+
+Finalize technical design
+
+My strongest recommendation: Build Engine A first, but design the data structures for Engine B from day one. Then build Engine B using your Oracle financial history.
+
+The real differentiator won’t be detecting strange comments. It will be discovering cases where the analyst’s narrative does not adequately reflect the customer’s actual credit and financial position — without needing labelled examples to train the models.
